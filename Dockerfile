@@ -17,6 +17,9 @@ FROM nginx:alpine
 # (Vite outputs to the 'dist' folder by default)
 COPY --from=build /app/dist /usr/share/nginx/html
 
+# Copy custom Nginx config to handle SPA routing (try_files fallback to index.html)
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
 # Expose port 80 for Nginx
 EXPOSE 80
 
