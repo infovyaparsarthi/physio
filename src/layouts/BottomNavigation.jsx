@@ -1,12 +1,13 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, CalendarCheck, Users, CreditCard, BarChart2 } from 'lucide-react';
+import { Home, CalendarCheck, Users, CreditCard, BarChart2, MessageSquare } from 'lucide-react';
 
 const navItems = [
   { path: '/dashboard', label: 'Home', Icon: Home },
   { path: '/attendance', label: 'Attend', Icon: CalendarCheck },
   { path: '/patients', label: 'Patients', Icon: Users },
   { path: '/payments', label: 'Payments', Icon: CreditCard },
+  { path: '/enquiries', label: 'Enquiry', Icon: MessageSquare },
   { path: '/reports', label: 'Reports', Icon: BarChart2 },
 ];
 

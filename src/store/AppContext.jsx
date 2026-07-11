@@ -10,6 +10,9 @@ import {
   updatePatient,
   createPayment,
   markPresentRequest,
+  fetchEnquiries,
+  createEnquiry,
+  deleteEnquiryRequest,
 } from '../services/api';
 
 const AppContext = createContext(null);
@@ -18,6 +21,7 @@ export const AppProvider = ({ children }) => {
   const [patients, setPatients] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [enquiries, setEnquiries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -26,25 +30,29 @@ export const AppProvider = ({ children }) => {
       setPatients([]);
       setAttendance([]);
       setPayments([]);
+      setEnquiries([]);
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const [p, a, pay] = await Promise.all([
+      const [p, a, pay, enq] = await Promise.all([
         fetchPatients(),
         fetchAttendance(),
         fetchPayments(),
+        fetchEnquiries(),
       ]);
       setPatients(p);
       setAttendance(a);
       setPayments(pay);
+      setEnquiries(enq);
     } catch (e) {
       setError(e?.response?.data?.error || e.message || 'Failed to load data');
       setPatients([]);
       setAttendance([]);
       setPayments([]);
+      setEnquiries([]);
     } finally {
       setLoading(false);
     }
@@ -69,6 +77,10 @@ export const AppProvider = ({ children }) => {
           patientData.initial_payment_amount !== '' && patientData.initial_payment_amount !== undefined
             ? Number(patientData.initial_payment_amount)
             : 0,
+        consultancy_fee:
+          patientData.consultancy_fee !== '' && patientData.consultancy_fee !== undefined
+            ? Number(patientData.consultancy_fee)
+            : 0,
       };
       const created = await createPatient(body);
       await loadAll();
@@ -87,6 +99,10 @@ export const AppProvider = ({ children }) => {
         payment_mode: updates.payment_mode,
         status: updates.status,
         photo: updates.photo,
+        consultancy_fee:
+          updates.consultancy_fee !== '' && updates.consultancy_fee !== undefined
+            ? Number(updates.consultancy_fee)
+            : 0,
       };
       if (updates.payment_mode === 'advance') {
         if (updates.sessions_total !== undefined) {
@@ -189,10 +205,27 @@ export const AppProvider = ({ children }) => {
     [patients]
   );
 
+  const addEnquiry = useCallback(
+    async (enquiryData) => {
+      await createEnquiry(enquiryData);
+      await loadAll();
+    },
+    [loadAll]
+  );
+
+  const deleteEnquiry = useCallback(
+    async (id) => {
+      await deleteEnquiryRequest(id);
+      await loadAll();
+    },
+    [loadAll]
+  );
+
   const value = {
     patients,
     attendance,
     payments,
+    enquiries,
     loading,
     error,
     refresh: loadAll,
@@ -209,6 +242,8 @@ export const AppProvider = ({ children }) => {
     getTodayPatients,
     getActivePatients,
     getLowSessionPatients,
+    addEnquiry,
+    deleteEnquiry,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

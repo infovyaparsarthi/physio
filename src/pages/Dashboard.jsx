@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, CalendarCheck, CreditCard, AlertTriangle, Plus, TrendingUp, Clock, Lock, Key } from 'lucide-react';
+import { Users, CalendarCheck, CreditCard, AlertTriangle, Plus, TrendingUp, Clock, Lock, Key, LogOut, MessageSquare } from 'lucide-react';
 import MobileLayout from '../layouts/MobileLayout';
 import Card from '../components/Card';
 import Badge from '../components/Badge';
@@ -8,7 +8,7 @@ import Avatar from '../components/Avatar';
 import Button from '../components/Button';
 import { useAppStore } from '../store/AppContext';
 import { formatCurrency } from '../utils';
-import { changePasswordRequest } from '../services/api';
+import { changePasswordRequest, clearToken } from '../services/api';
 
 const StatCard = ({ icon, label, value, color, sub }) => (
   <Card className="flex-1 min-w-0" gradient>
@@ -97,13 +97,25 @@ const Dashboard = () => {
               <p className="text-primary-100 text-xs font-medium">{today}</p>
               <h1 className="text-white text-xl font-bold mt-0.5">Good Morning, Admin 👋</h1>
             </div>
-            <button
-              onClick={() => setShowPasswordModal(true)}
-              className="w-10 h-10 rounded-2xl bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors cursor-pointer text-white"
-              title="Change Password"
-            >
-              <Lock size={20} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowPasswordModal(true)}
+                className="w-10 h-10 rounded-2xl bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors cursor-pointer text-white"
+                title="Change Password"
+              >
+                <Lock size={20} />
+              </button>
+              <button
+                onClick={() => {
+                  clearToken();
+                  navigate('/login');
+                }}
+                className="w-10 h-10 rounded-2xl bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors cursor-pointer text-white"
+                title="Logout"
+              >
+                <LogOut size={20} />
+              </button>
+            </div>
           </div>
           <div className="mt-4 flex items-center gap-2">
             <div className="bg-white/20 rounded-xl px-3 py-1.5 flex items-center gap-2">
@@ -130,19 +142,19 @@ const Dashboard = () => {
           <h2 className="text-sm font-bold text-gray-700 mb-3">Quick Actions</h2>
           <div className="flex gap-3">
             <button onClick={() => navigate('/attendance')}
-              className="flex-1 flex flex-col items-center gap-2 p-4 rounded-2xl bg-primary-600 text-white active:scale-95 transition-transform">
-              <CalendarCheck size={22} />
-              <span className="text-xs font-semibold">Mark Attendance</span>
+              className="flex-1 flex flex-col items-center gap-2 p-3 rounded-2xl bg-primary-600 text-white active:scale-95 transition-transform">
+              <CalendarCheck size={20} />
+              <span className="text-[10px] font-bold text-center">Mark Attend</span>
             </button>
             <button onClick={() => navigate('/patients/new')}
-              className="flex-1 flex flex-col items-center gap-2 p-4 rounded-2xl bg-success-600 text-white active:scale-95 transition-transform">
-              <Plus size={22} />
-              <span className="text-xs font-semibold">Add Patient</span>
+              className="flex-1 flex flex-col items-center gap-2 p-3 rounded-2xl bg-success-600 text-white active:scale-95 transition-transform">
+              <Plus size={20} />
+              <span className="text-[10px] font-bold text-center">Add Patient</span>
             </button>
-            <button onClick={() => navigate('/payments')}
-              className="flex-1 flex flex-col items-center gap-2 p-4 rounded-2xl bg-white border border-gray-200 text-gray-700 active:scale-95 transition-transform">
-              <CreditCard size={22} />
-              <span className="text-xs font-semibold">Payments</span>
+            <button onClick={() => navigate('/enquiries')}
+              className="flex-1 flex flex-col items-center gap-2 p-3 rounded-2xl bg-warning-600 text-white active:scale-95 transition-transform">
+              <MessageSquare size={20} />
+              <span className="text-[10px] font-bold text-center">Enquiries</span>
             </button>
           </div>
         </div>

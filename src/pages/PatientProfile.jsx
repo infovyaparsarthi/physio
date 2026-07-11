@@ -154,6 +154,7 @@ const PatientProfile = () => {
           <InfoRow icon={FileText} label="Prescription" value={patient.prescription} />
           <InfoRow icon={CalendarCheck} label="Last Visit" value={getRelativeTime(patient.last_visit)} />
           <InfoRow icon={CreditCard} label="Payment Mode" value={PAYMENT_MODES[patient.payment_mode]?.label} />
+          <InfoRow icon={CreditCard} label="Consultancy Fee" value={patient.consultancy_fee ? formatCurrency(patient.consultancy_fee) : '—'} />
         </Card>
 
         <Card>

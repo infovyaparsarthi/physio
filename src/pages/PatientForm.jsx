@@ -19,7 +19,7 @@ const PAYMENT_OPTIONS = [
 const defaultForm = {
   name: '', phone: '', injury: '', prescription: '',
   payment_mode: 'per_session', sessions_total: '', sessions_used: '', status: 'active', photo: null,
-  initial_payment_amount: '',
+  initial_payment_amount: '', consultancy_fee: '',
 };
 
 const PatientForm = () => {
@@ -44,7 +44,19 @@ const PatientForm = () => {
           prescription: patient.prescription, payment_mode: patient.payment_mode,
           sessions_total: patient.sessions_total, sessions_used: patient.sessions_used,
           status: patient.status, photo: patient.photo || null,
+          consultancy_fee: patient.consultancy_fee ?? '',
         });
+      }
+    } else {
+      const params = new URLSearchParams(window.location.search);
+      const qName = params.get('name') || '';
+      const qPhone = params.get('phone') || '';
+      if (qName || qPhone) {
+        setForm((prev) => ({
+          ...prev,
+          name: qName,
+          phone: qPhone,
+        }));
       }
     }
   }, [id, isEdit, getPatientById]);
@@ -86,6 +98,9 @@ const PatientForm = () => {
     }
     if (!isEdit && form.initial_payment_amount !== '' && Number(form.initial_payment_amount) < 0) {
       errs.initial_payment_amount = 'Initial payment amount cannot be negative';
+    }
+    if (form.consultancy_fee !== '' && form.consultancy_fee !== undefined && Number(form.consultancy_fee) < 0) {
+      errs.consultancy_fee = 'Consultancy fee cannot be negative';
     }
     return errs;
   };
@@ -188,13 +203,17 @@ const PatientForm = () => {
               )}
             </div>
           )}
-          {!isEdit && (
-            <div className="mt-4">
+          <div className="mt-4 border-t border-gray-100 pt-4 flex flex-col gap-4">
+            <Input label="Consultancy Fee (₹)" name="consultancy_fee" type="number" value={form.consultancy_fee}
+              onChange={handleChange} placeholder="e.g. 500" icon={CreditCard}
+              error={errors.consultancy_fee} helper="One-time consultancy fee for this patient" />
+
+            {!isEdit && (
               <Input label="Initial Payment Amount (₹)" name="initial_payment_amount" type="number" value={form.initial_payment_amount}
                 onChange={handleChange} placeholder="e.g. 1500 (optional)" icon={CreditCard}
                 error={errors.initial_payment_amount} helper="Enter amount collected today (leave blank if unpaid)" />
-            </div>
-          )}
+            )}
+          </div>
         </Card>
 
         {isEdit && (

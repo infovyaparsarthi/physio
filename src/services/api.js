@@ -80,6 +80,11 @@ export async function loginRequest(username, password) {
   return data;
 }
 
+export async function resetPasswordRequest(username) {
+  const { data } = await api.post('/api/auth/reset-password', { username });
+  return data;
+}
+
 export async function fetchPatients(params = {}) {
   const { data } = await api.get('/api/patients', { params });
   return data;
@@ -138,3 +143,19 @@ export async function fetchReportsSummary() {
 export async function changePasswordRequest(currentPassword, newPassword) {
   await api.post('/api/auth/change-password', { currentPassword, newPassword });
 }
+
+export async function fetchEnquiries() {
+  const { data } = await api.get('/api/enquiries');
+  return data;
+}
+
+export async function createEnquiry(body) {
+  const { data } = await api.post('/api/enquiries', body);
+  return data;
+}
+
+export async function deleteEnquiryRequest(id) {
+  const { data } = await api.delete(`/api/enquiries/${id}`);
+  return data;
+}
+

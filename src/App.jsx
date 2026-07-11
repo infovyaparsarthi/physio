@@ -12,6 +12,7 @@ import Attendance from './pages/Attendance';
 import AttendanceHistory from './pages/AttendanceHistory';
 import Payments from './pages/Payments';
 import Reports from './pages/Reports';
+import Enquiries from './pages/Enquiries';
 
 
 const ProtectedRoute = ({ children }) => {
@@ -34,6 +35,7 @@ const App = () => {
             <Route path="/attendance/history" element={<ProtectedRoute><AttendanceHistory /></ProtectedRoute>} />
             <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+            <Route path="/enquiries" element={<ProtectedRoute><Enquiries /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </BrowserRouter>

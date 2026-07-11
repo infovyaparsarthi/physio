@@ -3,15 +3,31 @@ import { useNavigate } from 'react-router-dom';
 import { Activity, Lock, User } from 'lucide-react';
 import Button from '../components/Button';
 import Input from '../components/Input';
-import { loginRequest, setToken } from '../services/api';
+import { loginRequest, setToken, resetPasswordRequest } from '../services/api';
 import { useAppStore } from '../store/AppContext';
+import { useToast } from '../components/Toast';
 
 const Login = () => {
   const navigate = useNavigate();
   const { refresh } = useAppStore();
+  const toast = useToast();
   const [form, setForm] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleResetPassword = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      await resetPasswordRequest(form.username);
+      toast({ message: 'password reset to admin123', type: 'success' });
+    } catch (err) {
+      const msg = err?.response?.data?.error || 'Failed to reset password';
+      toast({ message: msg, type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -94,6 +110,16 @@ const Login = () => {
             >
               Sign In
             </Button>
+            <div className="text-center mt-2">
+              <button
+                type="button"
+                onClick={handleResetPassword}
+                disabled={loading}
+                className="text-sm font-semibold text-primary-600 hover:text-primary-700 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Reset Password
+              </button>
+            </div>
           </form>
         </div>
       </div>

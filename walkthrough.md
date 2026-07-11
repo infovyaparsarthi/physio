@@ -51,3 +51,6 @@ Both services are currently running in the background. To manually start them in
    cd frontend
    npm run dev
    ```
+
+
+<!-- ----- -->
