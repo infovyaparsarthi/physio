@@ -6,5 +6,6 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: true, // This exposes the server to the local network (meaning your mobile device can access it)
+    historyApiFallback: true, // Serve index.html on 404s for SPA routing
   },
 })

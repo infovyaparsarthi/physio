@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, Lock, User } from 'lucide-react';
+import { Activity, Lock, User, ArrowLeft, KeyRound, ShieldCheck } from 'lucide-react';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import { loginRequest, setToken, resetPasswordRequest } from '../services/api';
@@ -34,6 +34,12 @@ const Login = () => {
     setError('');
   };
 
+  const handleFpChange = (e) => {
+    setFpForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setFpError('');
+    setFpSuccess('');
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -44,16 +50,63 @@ const Login = () => {
       await refresh();
       navigate('/dashboard');
     } catch (err) {
-      const msg =
-        err?.response?.data?.error || 'Invalid username or password';
+      const msg = err?.response?.data?.error || 'Invalid username or password';
       setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setFpError('');
+    setFpSuccess('');
+
+    if (fpForm.newPassword !== fpForm.confirmPassword) {
+      setFpError('New passwords do not match.');
+      return;
+    }
+    if (fpForm.newPassword.length < 4) {
+      setFpError('New password must be at least 4 characters.');
+      return;
+    }
+
+    setFpLoading(true);
+    try {
+      // Login first to validate current credentials, then change password
+      const data = await loginRequest(fpForm.username, fpForm.currentPassword);
+      setToken(data.token);
+      await changePasswordRequest(fpForm.currentPassword, fpForm.newPassword);
+      setFpSuccess('Password changed successfully! You can now log in.');
+      setFpForm({ username: '', currentPassword: '', newPassword: '', confirmPassword: '' });
+      setTimeout(() => {
+        setView('login');
+        setFpSuccess('');
+      }, 2500);
+    } catch (err) {
+      const msg = err?.response?.data?.error || 'Current credentials are incorrect.';
+      setFpError(msg);
+    } finally {
+      setFpLoading(false);
+    }
+  };
+
+  const switchToForgot = () => {
+    setError('');
+    setFpError('');
+    setFpSuccess('');
+    setFpForm({ username: '', currentPassword: '', newPassword: '', confirmPassword: '' });
+    setView('forgot');
+  };
+
+  const switchToLogin = () => {
+    setFpError('');
+    setFpSuccess('');
+    setView('login');
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen flex flex-col bg-white overflow-hidden">
       {/* Header gradient */}
       <div className="gradient-primary flex flex-col items-center justify-center pt-14 pb-16 px-6 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
@@ -71,11 +124,21 @@ const Login = () => {
         </div>
       </div>
 
-      {/* Form card floating over gradient */}
+      {/* Sliding card container */}
       <div className="flex-1 px-5 -mt-6 relative z-10">
-        <div className="bg-white rounded-3xl shadow-card-hover p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-1">Welcome back 👋</h2>
-          <p className="text-sm text-gray-500 mb-6">Sign in to your admin account</p>
+        <div
+          style={{
+            display: 'flex',
+            width: '200%',
+            transform: view === 'forgot' ? 'translateX(-50%)' : 'translateX(0)',
+            transition: 'transform 0.35s cubic-bezier(0.4,0,0.2,1)',
+          }}
+        >
+          {/* ── LOGIN CARD ── */}
+          <div className="w-1/2 pr-2.5">
+            <div className="bg-white rounded-3xl shadow-card-hover p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-1">Welcome back 👋</h2>
+              <p className="text-sm text-gray-500 mb-6">Sign in to your admin account</p>
 
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
             <Input
@@ -132,3 +195,4 @@ const Login = () => {
 };
 
 export default Login;
+
