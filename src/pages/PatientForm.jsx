@@ -9,6 +9,7 @@ import Card from '../components/Card';
 import Avatar from '../components/Avatar';
 import { useToast } from '../components/Toast';
 import { useAppStore } from '../store/AppContext';
+import { compressImage } from '../utils';
 
 const PAYMENT_OPTIONS = [
   { value: 'per_session', label: 'Per Session', desc: 'Pay each visit' },
@@ -67,14 +68,20 @@ const PatientForm = () => {
     setErrors((prev) => ({ ...prev, [name]: '' }));
   };
 
-  const handlePhotoChange = (e) => {
+  const handlePhotoChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setForm((prev) => ({ ...prev, photo: reader.result }));
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressedBase64 = await compressImage(file, { maxWidth: 600, maxHeight: 600, quality: 0.7 });
+        setForm((prev) => ({ ...prev, photo: compressedBase64 }));
+      } catch (err) {
+        console.error('Failed to compress image, using original file:', err);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setForm((prev) => ({ ...prev, photo: reader.result }));
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
