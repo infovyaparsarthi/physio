@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { formatDate, getTodayString } from '../utils';
 import {
   getToken,
+  getUserInfo,
   fetchPatients,
   fetchAttendance,
   fetchPayments,
@@ -13,6 +14,10 @@ import {
   fetchEnquiries,
   createEnquiry,
   deleteEnquiryRequest,
+  fetchReportsSummary,
+  fetchCompanies,
+  createCompany,
+  updateCompany,
 } from '../services/api';
 
 const AppContext = createContext(null);
@@ -22,6 +27,9 @@ export const AppProvider = ({ children }) => {
   const [attendance, setAttendance] = useState([]);
   const [payments, setPayments] = useState([]);
   const [enquiries, setEnquiries] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [reportSummary, setReportSummary] = useState(null);
+  const [user, setUser] = useState(() => getUserInfo());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -31,28 +39,48 @@ export const AppProvider = ({ children }) => {
       setAttendance([]);
       setPayments([]);
       setEnquiries([]);
+      setCompanies([]);
+      setReportSummary(null);
       setLoading(false);
       return;
     }
+    const currentUser = getUserInfo();
+    setUser(currentUser);
+    const isAdmin = currentUser?.isAdmin === 1;
     setLoading(true);
     setError(null);
     try {
-      const [p, a, pay, enq] = await Promise.all([
+      const baseFetches = [
         fetchPatients(),
         fetchAttendance(),
-        fetchPayments(),
         fetchEnquiries(),
-      ]);
-      setPatients(p);
-      setAttendance(a);
-      setPayments(pay);
-      setEnquiries(enq);
+        fetchReportsSummary(),
+      ];
+      // Only fetch admin-only data if user is admin
+      if (isAdmin) {
+        baseFetches.push(fetchPayments());
+        baseFetches.push(fetchCompanies());
+      }
+      const results = await Promise.all(baseFetches);
+      setPatients(results[0]);
+      setAttendance(results[1]);
+      setEnquiries(results[2]);
+      setReportSummary(results[3]);
+      if (isAdmin) {
+        setPayments(results[4]);
+        setCompanies(results[5]);
+      } else {
+        setPayments([]);
+        setCompanies([]);
+      }
     } catch (e) {
       setError(e?.response?.data?.error || e.message || 'Failed to load data');
       setPatients([]);
       setAttendance([]);
       setPayments([]);
       setEnquiries([]);
+      setCompanies([]);
+      setReportSummary(null);
     } finally {
       setLoading(false);
     }
@@ -221,11 +249,32 @@ export const AppProvider = ({ children }) => {
     [loadAll]
   );
 
+  const addNewCompany = useCallback(
+    async (companyData) => {
+      const created = await createCompany(companyData);
+      await loadAll();
+      return created;
+    },
+    [loadAll]
+  );
+
+  const updateCompanyById = useCallback(
+    async (id, updates) => {
+      const updated = await updateCompany(id, updates);
+      await loadAll();
+      return updated;
+    },
+    [loadAll]
+  );
+
   const value = {
+    user,
     patients,
     attendance,
     payments,
     enquiries,
+    companies,
+    reportSummary,
     loading,
     error,
     refresh: loadAll,
@@ -244,6 +293,8 @@ export const AppProvider = ({ children }) => {
     getLowSessionPatients,
     addEnquiry,
     deleteEnquiry,
+    addNewCompany,
+    updateCompanyById,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

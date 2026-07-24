@@ -12,7 +12,7 @@ const Card = ({
     <div
       onClick={onClick}
       className={`
-        rounded-2xl border border-gray-100
+        rounded-2xl border border-gray-200/60
         ${padding ? 'p-4' : ''}
         ${gradient ? 'gradient-card' : 'bg-white'}
         ${hover || onClick ? 'active:scale-95 transition-transform duration-150 cursor-pointer' : ''}

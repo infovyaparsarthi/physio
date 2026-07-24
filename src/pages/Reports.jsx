@@ -30,31 +30,38 @@ const MetricCard = ({ icon: Icon, label, value, sub, color = 'primary' }) => {
 
 const Reports = () => {
   const {
-    patients, attendance, payments,
+    patients, attendance, payments, reportSummary,
     getActivePatients, getLowSessionPatients, getSessionsRemaining,
+    loading,
   } = useAppStore();
 
   const today = new Date().toISOString().split('T')[0];
   const thisMonth = today.slice(0, 7);
 
-  const todayPresent = useMemo(
+  // Use server-side report summary when available, fall back to client-side
+  const todayPresent = reportSummary?.todayPresent ?? useMemo(
     () => attendance.filter((a) => a.date === today && a.present).length,
     [attendance, today]
   );
 
-  const monthlyVisits = useMemo(
+  const monthlyVisits = reportSummary?.monthlyVisits ?? useMemo(
     () => attendance.filter((a) => a.date.startsWith(thisMonth) && a.present).length,
     [attendance, thisMonth]
   );
 
-  const totalRevenue = useMemo(() => payments.reduce((sum, p) => sum + p.amount, 0), [payments]);
+  const totalRevenue = reportSummary?.totalRevenue ?? useMemo(
+    () => payments.reduce((sum, p) => sum + p.amount, 0),
+    [payments]
+  );
 
   const monthlyRevenue = useMemo(
-    () => payments.filter((p) => p.created_at.startsWith(thisMonth)).reduce((sum, p) => sum + p.amount, 0),
+    () => payments.filter((p) => p.created_at?.startsWith(thisMonth)).reduce((sum, p) => sum + p.amount, 0),
     [payments, thisMonth]
   );
 
+  const activeCount = reportSummary?.activePatients ?? null;
   const activePatients = useMemo(() => getActivePatients(), [getActivePatients]);
+  const lowSessionCount = reportSummary?.lowSessionCount ?? null;
   const lowSessions   = useMemo(() => getLowSessionPatients(), [getLowSessionPatients]);
 
   const breakdown = useMemo(() => {
@@ -63,10 +70,19 @@ const Reports = () => {
     return modes;
   }, [patients]);
 
-  const recentPayments = useMemo(
-    () => [...payments].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5),
-    [payments]
-  );
+  const recentPayments = useMemo(() => {
+    if (reportSummary?.recentPayments) return reportSummary.recentPayments;
+    return [...payments].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5);
+  }, [payments, reportSummary]);
+
+  if (loading) {
+    return (
+      <MobileLayout>
+        <Header title="Reports" subtitle="Loading…" />
+        <div className="px-4 py-16 text-center text-gray-500 text-sm">Loading report data…</div>
+      </MobileLayout>
+    );
+  }
 
   return (
     <MobileLayout>
@@ -97,9 +113,9 @@ const Reports = () => {
         <div>
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Patients</p>
           <div className="flex gap-3">
-            <MetricCard icon={Users}       label="Active"      value={activePatients.length} color="success" />
-            <MetricCard icon={AlertCircle} label="Low Sessions" value={lowSessions.length} sub="Need renewal"
-              color={lowSessions.length > 0 ? 'warning' : 'success'} />
+            <MetricCard icon={Users}       label="Active"      value={activeCount ?? activePatients.length} color="success" />
+            <MetricCard icon={AlertCircle} label="Low Sessions" value={lowSessionCount ?? lowSessions.length} sub="Need renewal"
+              color={(lowSessionCount ?? lowSessions.length) > 0 ? 'warning' : 'success'} />
           </div>
         </div>
 

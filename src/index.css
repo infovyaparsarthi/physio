@@ -27,8 +27,8 @@
     width: 100%;
     max-width: 420px;
     height: 100%;
-    @apply bg-white relative;
-    box-shadow: 0 0 40px rgba(0,0,0,0.12);
+    @apply bg-slate-50 relative;
+    box-shadow: 0 0 40px rgba(0,0,0,0.15);
     display: flex;
     flex-direction: column;
   }

@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 export const TOKEN_KEY = 'clinic_auth_token';
+const USER_INFO_KEY = 'clinic_user_info';
 
 /** API origin only from env — no relative URLs to the Vite dev server. */
 function apiBaseUrl() {
@@ -28,6 +29,23 @@ export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+export function getUserInfo() {
+  try {
+    const raw = localStorage.getItem(USER_INFO_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setUserInfo(user) {
+  localStorage.setItem(USER_INFO_KEY, JSON.stringify(user));
+}
+
+export function clearUserInfo() {
+  localStorage.removeItem(USER_INFO_KEY);
+}
+
 export const api = axios.create({
   baseURL: apiBaseUrl(),
 });
@@ -41,15 +59,25 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
-      const url = err.config?.url || '';
-      if (!url.includes('/api/auth/login')) {
-        clearToken();
-        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-          window.location.assign('/login');
-        }
+    const status = err.response?.status;
+    const url = err.config?.url || '';
+
+    if (status === 401 && !url.includes('/api/auth/login')) {
+      clearToken();
+      clearUserInfo();
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+        window.location.assign('/login');
       }
     }
+
+    if (status === 403 && !url.includes('/api/auth/login')) {
+      clearToken();
+      clearUserInfo();
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+        window.location.assign('/login?expired=1');
+      }
+    }
+
     return Promise.reject(err);
   }
 );
@@ -159,3 +187,41 @@ export async function deleteEnquiryRequest(id) {
   return data;
 }
 
+// ── Companies (Admin Only) ──
+
+export async function fetchCompanies() {
+  const { data } = await api.get('/api/companies');
+  return data;
+}
+
+export async function createCompany(body) {
+  const { data } = await api.post('/api/companies', body);
+  return data;
+}
+
+export async function updateCompany(id, body) {
+  const { data } = await api.patch(`/api/companies/${id}`, body);
+  return data;
+}
+
+// ── Subscriptions (Admin Only) ──
+
+export async function fetchSubscriptions(companyId) {
+  const { data } = await api.get(`/api/subscriptions/${companyId}`);
+  return data;
+}
+
+export async function createSubscription(body) {
+  const { data } = await api.post('/api/subscriptions', body);
+  return data;
+}
+
+export async function resetCompanyPassword(id) {
+  const { data } = await api.post(`/api/companies/${id}/reset-password`);
+  return data;
+}
+
+export async function updateSubscriptionStatus(id, status) {
+  const { data } = await api.patch(`/api/subscriptions/${id}`, { status });
+  return data;
+}

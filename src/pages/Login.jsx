@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Activity, Lock, User } from 'lucide-react';
 import Button from '../components/Button';
 import Input from '../components/Input';
-import { loginRequest, setToken, resetPasswordRequest } from '../services/api';
+import { loginRequest, setToken, setUserInfo, resetPasswordRequest } from '../services/api';
 import { useAppStore } from '../store/AppContext';
 import { useToast } from '../components/Toast';
 
 const Login = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isExpired = searchParams.get('expired') === '1';
   const { refresh } = useAppStore();
   const toast = useToast();
   const [form, setForm] = useState({ username: '', password: '' });
@@ -41,6 +43,7 @@ const Login = () => {
     try {
       const data = await loginRequest(form.username, form.password);
       setToken(data.token);
+      if (data.user) setUserInfo(data.user);
       await refresh();
       navigate('/dashboard');
     } catch (err) {
@@ -96,6 +99,11 @@ const Login = () => {
               icon={Lock}
               required
             />
+            {isExpired && (
+              <div className="bg-warning-50 text-warning-700 text-sm px-4 py-3 rounded-xl font-medium border border-warning-200 mb-2">
+                ⚠️ Your subscription has expired. Please contact support to renew.
+              </div>
+            )}
             {error && (
               <div className="bg-danger-50 text-danger-600 text-sm px-4 py-3 rounded-xl font-medium">
                 {error}

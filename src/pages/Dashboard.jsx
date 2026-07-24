@@ -30,8 +30,9 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const {
     getTodayPatients, getActivePatients, getLowSessionPatients,
-    payments, getSessionsRemaining, loading,
+    payments, getSessionsRemaining, loading, user,
   } = useAppStore();
+  const isAdmin = user?.isAdmin === 1;
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -134,7 +135,9 @@ const Dashboard = () => {
         </div>
         <div className="flex gap-3">
           <StatCard icon={AlertTriangle} label="Low Sessions" value={lowSessionPatients.length} color="warning" sub="Need renewal" />
-          <StatCard icon={CreditCard} label="Revenue" value={formatCurrency(totalRevenue)} color="primary" sub="Total collected" />
+          {isAdmin && (
+            <StatCard icon={CreditCard} label="Revenue" value={formatCurrency(totalRevenue)} color="primary" sub="Total collected" />
+          )}
         </div>
 
         {/* Quick actions */}

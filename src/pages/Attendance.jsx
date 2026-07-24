@@ -205,8 +205,8 @@ const Attendance = () => {
         </div>
       </div>
 
-      <div className="fixed bottom-16 left-1/2 -translate-x-1/2 w-full max-w-mobile px-4 pb-3 pt-3 bg-white border-t border-gray-100 z-50">
-        <Button size="full" icon={CheckCircle2} loading={saving} onClick={handleSave} variant={saved ? 'success' : 'primary'}>
+      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-mobile px-4 z-30 drop-shadow-xl">
+        <Button size="full" icon={CheckCircle2} loading={saving} onClick={handleSave} variant={saved ? 'success' : 'primary'} className="shadow-2xl rounded-2xl">
           {saved ? 'Attendance Saved ✓' : (listFilter === 'all' ? 'Save Attendance' : `Save Attendance (${presentCount} Present)`)}
         </Button>
       </div>

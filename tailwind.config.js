@@ -49,9 +49,9 @@ export default {
         mobile: '420px',
       },
       boxShadow: {
-        'card': '0 2px 12px rgba(0,0,0,0.08)',
-        'card-hover': '0 4px 20px rgba(0,0,0,0.12)',
-        'bottom-nav': '0 -4px 20px rgba(0,0,0,0.1)',
+        'card': '0 4px 15px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)',
+        'card-hover': '0 10px 25px rgba(0,0,0,0.1), 0 4px 10px rgba(0,0,0,0.05)',
+        'bottom-nav': '0 -4px 20px rgba(0,0,0,0.08)',
       },
     },
   },
