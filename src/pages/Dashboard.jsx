@@ -15,8 +15,8 @@ const StatCard = ({ icon, label, value, color, sub }) => (
     <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3
       ${color === 'primary' ? 'bg-primary-100 text-primary-600' :
         color === 'success' ? 'bg-success-100 text-success-600' :
-        color === 'warning' ? 'bg-warning-100 text-warning-600' :
-        'bg-danger-100 text-danger-600'}
+          color === 'warning' ? 'bg-warning-100 text-warning-600' :
+            'bg-danger-100 text-danger-600'}
     `}>
       {React.createElement(icon, { size: 18, strokeWidth: 2.5 })}
     </div>
@@ -96,7 +96,7 @@ const Dashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-primary-100 text-xs font-medium">{today}</p>
-              <h1 className="text-white text-xl font-bold mt-0.5">Good Morning, Admin 👋</h1>
+              <h1 className="text-white text-xl font-bold mt-0.5">Good Morning, {user?.name} 👋</h1>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -232,7 +232,7 @@ const Dashboard = () => {
               <Key size={18} className="text-primary-600" /> Change Password
             </h3>
             <p className="text-xs text-gray-500 mb-4">Secure your account with a new password.</p>
-            
+
             <form onSubmit={handlePasswordChange} className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Current Password</label>
