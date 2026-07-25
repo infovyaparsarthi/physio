@@ -72,6 +72,8 @@ const Dashboard = () => {
   const todayPatients = useMemo(() => getTodayPatients(), [getTodayPatients]);
   const activePatients = useMemo(() => getActivePatients(), [getActivePatients]);
   const lowSessionPatients = useMemo(() => getLowSessionPatients(), [getLowSessionPatients]);
+  const userName = user?.isAdmin === 1 ? 'Admin' : user?.name;
+  console.log(userName);
 
   const totalRevenue = useMemo(
     () => payments.reduce((sum, p) => sum + p.amount, 0),
@@ -96,7 +98,7 @@ const Dashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-primary-100 text-xs font-medium">{today}</p>
-              <h1 className="text-white text-xl font-bold mt-0.5">Good Morning, {user?.name} 👋</h1>
+              <h1 className="text-white text-xl font-bold mt-0.5">Good Morning, {userName} 👋</h1>
             </div>
             <div className="flex items-center gap-2">
               <button
