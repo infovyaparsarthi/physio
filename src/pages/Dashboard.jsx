@@ -72,8 +72,7 @@ const Dashboard = () => {
   const todayPatients = useMemo(() => getTodayPatients(), [getTodayPatients]);
   const activePatients = useMemo(() => getActivePatients(), [getActivePatients]);
   const lowSessionPatients = useMemo(() => getLowSessionPatients(), [getLowSessionPatients]);
-  const userName = user?.isAdmin === 1 ? 'Admin' : user?.name;
-  console.log(userName);
+  const userName = user?.isAdmin === 1 ? 'Admin' : (user?.company_name || user?.company?.name || user?.name);
 
   const totalRevenue = useMemo(
     () => payments.reduce((sum, p) => sum + p.amount, 0),
