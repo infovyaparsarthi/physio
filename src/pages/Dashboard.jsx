@@ -98,7 +98,7 @@ const Dashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-primary-100 text-xs font-medium">{today}</p>
-              <h1 className="text-white text-xl font-bold mt-0.5">Good Morning, {userName} 👋</h1>
+              <h1 className="text-white text-xl font-bold mt-0.5">{userName} 👋</h1>
             </div>
             <div className="flex items-center gap-2">
               <button
