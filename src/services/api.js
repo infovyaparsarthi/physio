@@ -158,6 +158,19 @@ export async function fetchPayments(params = {}) {
   }));
 }
 
+export async function fetchPatientPayments(patientId) {
+  const { data } = await api.get(`/api/patients/${patientId}/payments`);
+  return data.map((p) => ({
+    id: p.id,
+    patient_id: p.patient_id,
+    amount: Number(p.amount),
+    payment_type: p.payment_type,
+    sessions: Number(p.sessions),
+    created_at: p.created_at,
+    patient_name: p.patient_name,
+  }));
+}
+
 export async function createPayment(body) {
   const { data } = await api.post('/api/payments', body);
   return data;

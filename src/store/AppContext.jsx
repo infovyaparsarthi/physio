@@ -55,10 +55,10 @@ export const AppProvider = ({ children }) => {
         fetchAttendance(),
         fetchEnquiries(),
         fetchReportsSummary(),
+        fetchPayments(), // Scoped by company_id on the backend for non-admin users
       ];
       // Only fetch admin-only data if user is admin
       if (isAdmin) {
-        baseFetches.push(fetchPayments());
         baseFetches.push(fetchCompanies());
       }
       const results = await Promise.all(baseFetches);
@@ -66,11 +66,10 @@ export const AppProvider = ({ children }) => {
       setAttendance(results[1]);
       setEnquiries(results[2]);
       setReportSummary(results[3]);
+      setPayments(results[4]);
       if (isAdmin) {
-        setPayments(results[4]);
         setCompanies(results[5]);
       } else {
-        setPayments([]);
         setCompanies([]);
       }
     } catch (e) {

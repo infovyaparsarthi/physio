@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Edit2, CalendarCheck, CreditCard, Phone, Activity, FileText, ChevronRight } from 'lucide-react';
 import MobileLayout from '../layouts/MobileLayout';
@@ -11,6 +11,7 @@ import { useToast } from '../components/Toast';
 import { useAppStore } from '../store/AppContext';
 import { formatDate, formatCurrency, getRelativeTime, getTodayString } from '../utils';
 import { PAYMENT_MODES } from '../constants';
+import { fetchPatientPayments } from '../services/api';
 
 const InfoRow = ({ icon: Icon, label, value }) => (
   <div className="flex items-start gap-3 py-3 border-b border-gray-50 last:border-0">
@@ -32,16 +33,26 @@ const PatientProfile = () => {
     getPatientById,
     getSessionsRemaining,
     getPatientAttendance,
-    getPatientPayments,
     markPatientPresent,
     attendance,
     loading,
   } = useAppStore();
   const [markingPresent, setMarkingPresent] = useState(false);
+  const [patientPayments, setPatientPayments] = useState([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(true);
 
   const patient = useMemo(() => getPatientById(id), [id, getPatientById]);
   const patientAttendance = useMemo(() => getPatientAttendance(id), [id, getPatientAttendance]);
-  const patientPayments = useMemo(() => getPatientPayments(id), [id, getPatientPayments]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setPaymentsLoading(true);
+    fetchPatientPayments(id)
+      .then((data) => { if (!cancelled) setPatientPayments(data); })
+      .catch(() => { if (!cancelled) setPatientPayments([]); })
+      .finally(() => { if (!cancelled) setPaymentsLoading(false); });
+    return () => { cancelled = true; };
+  }, [id]);
 
   if (loading) {
     return (
@@ -155,6 +166,7 @@ const PatientProfile = () => {
           <InfoRow icon={CalendarCheck} label="Last Visit" value={getRelativeTime(patient.last_visit)} />
           <InfoRow icon={CreditCard} label="Payment Mode" value={PAYMENT_MODES[patient.payment_mode]?.label} />
           <InfoRow icon={CreditCard} label="Consultancy Fee" value={patient.consultancy_fee ? formatCurrency(patient.consultancy_fee) : '—'} />
+          <InfoRow icon={CalendarCheck} label="Enrollment Date" value={formatDate(patient.created_at)} />
         </Card>
 
         <Card>
@@ -183,7 +195,9 @@ const PatientProfile = () => {
               Add <ChevronRight size={12} />
             </button>
           </div>
-          {patientPayments.length === 0 ? (
+          {paymentsLoading ? (
+            <p className="text-sm text-gray-400 text-center py-4">Loading…</p>
+          ) : patientPayments.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-4">No payments recorded</p>
           ) : (
             <div className="flex flex-col gap-1.5">
