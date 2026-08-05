@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, Circle, Users, CalendarDays, History } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { CheckCircle2, Circle, Users, CalendarDays, History, ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import MobileLayout from '../layouts/MobileLayout';
 import Header from '../layouts/Header';
 import Card from '../components/Card';
@@ -12,14 +12,63 @@ import { formatDate, getTodayString } from '../utils';
 
 const Attendance = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const today = getTodayString();
-  const { getActivePatients, saveAttendance, attendance } = useAppStore();
+  const { getActivePatients, saveAttendance, attendance, getPatientEnrollmentDate } = useAppStore();
   const toast = useToast();
+  const dateInputRef = useRef(null);
 
   const activePatients = useMemo(() => getActivePatients(), [getActivePatients]);
 
+  // Allow pre-seeding the date from ?date= query param (e.g. from AttendanceHistory "Edit" button)
+  const initialDate = (() => {
+    const qd = searchParams.get('date');
+    return qd && qd <= today ? qd : today;
+  })();
+
+  const [selectedDate, setSelectedDate] = useState(initialDate);
   const [attendanceMap, setAttendanceMap] = useState({});
   const [listFilter, setListFilter] = useState('all');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const isToday = selectedDate === today;
+  const isFuture = selectedDate > today;
+
+  // Navigate days
+  const goToPrevDay = () => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() - 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    setSelectedDate(`${y}-${m}-${day}`);
+    setSaved(false);
+  };
+
+  const goToNextDay = () => {
+    if (isToday) return; // Can't go to future
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const next = `${y}-${m}-${day}`;
+    if (next <= today) {
+      setSelectedDate(next);
+      setSaved(false);
+    }
+  };
+
+  const handleDateChange = (e) => {
+    const val = e.target.value;
+    if (val && val <= today) {
+      setSelectedDate(val);
+      setSaved(false);
+    } else if (val > today) {
+      toast({ message: 'Cannot mark attendance for future dates', type: 'error' });
+    }
+  };
 
   const filteredPatients = useMemo(() => {
     return activePatients.filter((p) => {
@@ -30,69 +79,88 @@ const Attendance = () => {
     });
   }, [activePatients, attendanceMap, listFilter]);
 
+  // Load attendance for selected date
   useEffect(() => {
-    const todayRecs = attendance.filter((a) => a.date === today);
+    const dateRecs = attendance.filter((a) => a.date === selectedDate);
     const initial = {};
     activePatients.forEach((p) => {
-      const r = todayRecs.find((a) => a.patient_id === p.id);
+      const r = dateRecs.find((a) => a.patient_id === p.id);
       initial[p.id] = r ? r.present : false;
     });
     setAttendanceMap(initial);
-  }, [activePatients, attendance, today]);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+    setSaved(false);
+  }, [activePatients, attendance, selectedDate]);
 
   const presentCount = Object.values(attendanceMap).filter(Boolean).length;
 
-  const hasSavedToday = useMemo(() => {
-    return attendance.some((a) => a.date === today);
-  }, [attendance, today]);
+  const hasSavedForDate = useMemo(() => {
+    return attendance.some((a) => a.date === selectedDate);
+  }, [attendance, selectedDate]);
+
+  // Returns true if a patient was not yet enrolled on the selected date
+  const isPatientPreEnrollment = useCallback((patientId) => {
+    const enrollmentDate = getPatientEnrollmentDate(patientId);
+    if (!enrollmentDate) return false;
+    return selectedDate < enrollmentDate;
+  }, [getPatientEnrollmentDate, selectedDate]);
+
+  const enrollablePatients = useMemo(
+    () => activePatients.filter((p) => !isPatientPreEnrollment(p.id)),
+    [activePatients, isPatientPreEnrollment]
+  );
 
   const togglePatient = (id) => {
     setAttendanceMap((prev) => ({ ...prev, [id]: !prev[id] }));
     setSaved(false);
   };
 
-  const handlePatientClick = (patientId, isEditable) => {
+  const handlePatientClick = (patientId, isEditable, isLocked) => {
+    if (isLocked) {
+      const ed = getPatientEnrollmentDate(patientId);
+      toast({ message: `Patient not yet enrolled on this date. Enrollment: ${formatDate(ed)}`, type: 'info' });
+      return;
+    }
     if (!isEditable) {
-      toast({ message: 'Attendance already marked. Please switch to the Present/Absent tabs to make updates.', type: 'info' });
+      toast({ message: 'Attendance already marked. Switch to Present/Absent tabs to update.', type: 'info' });
       return;
     }
     togglePatient(patientId);
   };
 
   const markAll = () => {
-    if (hasSavedToday && listFilter === 'all') {
-      toast({ message: 'Attendance already marked. Please update individual patients on the Present/Absent tabs.', type: 'error' });
+    if (hasSavedForDate && listFilter === 'all') {
+      toast({ message: 'Attendance already marked. Use Present/Absent tabs to update individual patients.', type: 'error' });
       return;
     }
-    const next = {};
-    activePatients.forEach((p) => { next[p.id] = true; });
+    const next = { ...attendanceMap };
+    // Only mark enrollable patients
+    enrollablePatients.forEach((p) => { next[p.id] = true; });
     setAttendanceMap(next);
     setSaved(false);
-    toast({ message: 'All patients marked present', type: 'info' });
+    toast({ message: `${enrollablePatients.length} enrolled patients marked present`, type: 'info' });
   };
 
   const clearAll = () => {
-    if (hasSavedToday && listFilter === 'all') {
-      toast({ message: 'Attendance already marked. Please update individual patients on the Present/Absent tabs.', type: 'error' });
+    if (hasSavedForDate && listFilter === 'all') {
+      toast({ message: 'Attendance already marked. Use Present/Absent tabs to update individual patients.', type: 'error' });
       return;
     }
-    const next = {};
-    activePatients.forEach((p) => { next[p.id] = false; });
+    const next = { ...attendanceMap };
+    enrollablePatients.forEach((p) => { next[p.id] = false; });
     setAttendanceMap(next);
     setSaved(false);
   };
 
   const handleSave = async () => {
+    const skippedCount = activePatients.filter((p) => isPatientPreEnrollment(p.id)).length;
     setSaving(true);
     try {
-      await saveAttendance(today, attendanceMap);
+      await saveAttendance(selectedDate, attendanceMap);
       setSaved(true);
-      toast({
-        message: `Attendance saved! ${presentCount} patient${presentCount !== 1 ? 's' : ''} marked present.`,
-        type: 'success',
-      });
+      const msg = skippedCount > 0
+        ? `Attendance saved! ${presentCount} present. ${skippedCount} patient${skippedCount !== 1 ? 's' : ''} skipped (not yet enrolled).`
+        : `Attendance saved for ${formatDate(selectedDate)}! ${presentCount} patient${presentCount !== 1 ? 's' : ''} present.`;
+      toast({ message: msg, type: 'success' });
     } catch {
       toast({ message: 'Could not save attendance', type: 'error' });
     } finally {
@@ -100,11 +168,16 @@ const Attendance = () => {
     }
   };
 
+  const dateLabel = isToday ? 'Today' : selectedDate === (() => {
+    const y = new Date(); y.setDate(y.getDate() - 1);
+    return `${y.getFullYear()}-${String(y.getMonth()+1).padStart(2,'0')}-${String(y.getDate()).padStart(2,'0')}`;
+  })() ? 'Yesterday' : formatDate(selectedDate);
+
   return (
     <MobileLayout>
       <Header
         title="Attendance"
-        subtitle={formatDate(today)}
+        subtitle={formatDate(selectedDate)}
         rightAction={
           <Button
             variant="ghost"
@@ -118,40 +191,97 @@ const Attendance = () => {
       />
 
       <div className="px-4 pt-4 pb-44 flex flex-col gap-4">
+        {/* Date selector card */}
         <Card gradient>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
-                <CalendarDays size={20} className="text-primary-600" />
+              {/* Prev day */}
+              <button
+                onClick={goToPrevDay}
+                className="w-8 h-8 rounded-xl bg-white/60 hover:bg-white flex items-center justify-center transition-all active:scale-90 shadow-sm"
+                title="Previous day"
+              >
+                <ChevronLeft size={16} className="text-gray-600" />
+              </button>
+
+              {/* Calendar icon — taps to open date picker */}
+              <div className="relative">
+                <button
+                  onClick={() => dateInputRef.current?.showPicker?.() || dateInputRef.current?.click()}
+                  className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center hover:bg-primary-200 active:scale-95 transition-all cursor-pointer"
+                  title="Pick a date"
+                >
+                  <CalendarDays size={20} className="text-primary-600" />
+                </button>
+                {/* Hidden native date input */}
+                <input
+                  ref={dateInputRef}
+                  type="date"
+                  value={selectedDate}
+                  max={today}
+                  onChange={handleDateChange}
+                  className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                  style={{ zIndex: 1 }}
+                />
               </div>
+
               <div>
-                <p className="text-xs text-gray-500 font-medium">Today</p>
-                <p className="text-sm font-bold text-gray-900">{formatDate(today)}</p>
+                <p className="text-xs text-gray-500 font-medium">{dateLabel}</p>
+                <p className="text-sm font-bold text-gray-900">{formatDate(selectedDate)}</p>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-2xl font-extrabold text-primary-600">{presentCount}</div>
-              <div className="text-xs text-gray-500">/ {activePatients.length} present</div>
+
+            <div className="flex items-center gap-2">
+              <div className="text-right">
+                <div className="text-2xl font-extrabold text-primary-600">{presentCount}</div>
+                <div className="text-xs text-gray-500">/ {enrollablePatients.length} present</div>
+              </div>
+              {/* Next day */}
+              <button
+                onClick={goToNextDay}
+                disabled={isToday}
+                className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all
+                  ${isToday ? 'opacity-30 cursor-not-allowed' : 'bg-white/60 hover:bg-white active:scale-90 shadow-sm'}`}
+                title="Next day"
+              >
+                <ChevronRight size={16} className="text-gray-600" />
+              </button>
             </div>
           </div>
+
+          {/* Past date badge */}
+          {!isToday && (
+            <div className="mt-2 flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-semibold">
+                <CalendarDays size={10} />
+                Editing past date
+              </span>
+              {hasSavedForDate && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-100 text-primary-700 text-[10px] font-semibold">
+                  ✓ Already saved
+                </span>
+              )}
+            </div>
+          )}
+
           <div className="mt-3 h-2 bg-gray-100 rounded-full overflow-hidden">
             <div className="h-full bg-primary-500 rounded-full transition-all duration-500"
-              style={{ width: `${activePatients.length > 0 ? (presentCount / activePatients.length) * 100 : 0}%` }} />
+              style={{ width: `${enrollablePatients.length > 0 ? (presentCount / enrollablePatients.length) * 100 : 0}%` }} />
           </div>
         </Card>
 
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" icon={Users} onClick={markAll} disabled={hasSavedToday && listFilter === 'all'} className="flex-1">Mark All Present</Button>
-          <Button variant="ghost" size="sm" onClick={clearAll} disabled={hasSavedToday && listFilter === 'all'} className="flex-1 border border-gray-200">Clear All</Button>
+          <Button variant="secondary" size="sm" icon={Users} onClick={markAll} disabled={hasSavedForDate && listFilter === 'all'} className="flex-1">Mark All Present</Button>
+          <Button variant="ghost" size="sm" onClick={clearAll} disabled={hasSavedForDate && listFilter === 'all'} className="flex-1 border border-gray-200">Clear All</Button>
         </div>
 
         <div>
           <div className="flex items-center gap-2 mb-4 overflow-x-auto hide-scrollbar pb-1">
             {['all', 'present', 'absent'].map((f) => {
-              const count = f === 'all' 
-                ? activePatients.length 
-                : f === 'present' 
-                  ? presentCount 
+              const count = f === 'all'
+                ? activePatients.length
+                : f === 'present'
+                  ? presentCount
                   : activePatients.length - presentCount;
               return (
                 <button
@@ -178,25 +308,40 @@ const Attendance = () => {
               </div>
             ) : (
               filteredPatients.map((patient) => {
-                const isPresent = (listFilter === 'all' && hasSavedToday) ? false : attendanceMap[patient.id];
-                const isEditable = !hasSavedToday || listFilter !== 'all';
+                const preEnrollment = isPatientPreEnrollment(patient.id);
+                const isPresent = (!preEnrollment && listFilter === 'all' && hasSavedForDate) ? false : attendanceMap[patient.id];
+                const isEditable = !preEnrollment && (!hasSavedForDate || listFilter !== 'all');
                 return (
-                  <div key={patient.id} onClick={() => handlePatientClick(patient.id, isEditable)}
+                  <div key={patient.id} onClick={() => handlePatientClick(patient.id, isEditable, preEnrollment)}
                     className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 select-none transition-all duration-200
-                      ${!isEditable ? 'cursor-not-allowed opacity-90' : 'cursor-pointer active:scale-95'}
-                      ${isPresent ? 'bg-success-50 border-success-200' : 'bg-white border-gray-100'}`}>
+                      ${preEnrollment ? 'cursor-not-allowed opacity-50 bg-gray-50 border-gray-100' :
+                        !isEditable ? 'cursor-not-allowed opacity-90 bg-white border-gray-100' :
+                          `cursor-pointer active:scale-95 ${isPresent ? 'bg-success-50 border-success-200' : 'bg-white border-gray-100'}`}
+                    `}>
                     <Avatar name={patient.name} size="sm" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <p className={`text-sm font-bold truncate ${isPresent ? 'text-success-800' : 'text-gray-800'}`}>{patient.name}</p>
+                        <p className={`text-sm font-bold truncate ${preEnrollment ? 'text-gray-400' : isPresent ? 'text-success-800' : 'text-gray-800'}`}>
+                          {patient.name}
+                        </p>
                       </div>
-                      <p className="text-xs text-gray-500 truncate">{patient.injury}</p>
+                      {preEnrollment ? (
+                        <p className="text-[10px] text-amber-600 font-semibold truncate">
+                          Enrolled: {formatDate(getPatientEnrollmentDate(patient.id))}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-500 truncate">{patient.injury}</p>
+                      )}
                     </div>
-                    {isEditable && (
+                    {preEnrollment ? (
+                      <div className="text-gray-300" title="Not yet enrolled on this date">
+                        <Lock size={18} strokeWidth={1.5} />
+                      </div>
+                    ) : isEditable ? (
                       <div className={`transition-all duration-200 ${isPresent ? 'text-success-500' : 'text-gray-300'}`}>
                         {isPresent ? <CheckCircle2 size={24} strokeWidth={2.5} /> : <Circle size={24} strokeWidth={1.5} />}
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 );
               })
@@ -207,7 +352,12 @@ const Attendance = () => {
 
       <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-mobile px-4 z-30 drop-shadow-xl">
         <Button size="full" icon={CheckCircle2} loading={saving} onClick={handleSave} variant={saved ? 'success' : 'primary'} className="shadow-2xl rounded-2xl">
-          {saved ? 'Attendance Saved ✓' : (listFilter === 'all' ? 'Save Attendance' : `Save Attendance (${presentCount} Present)`)}
+          {saved
+            ? `Saved for ${formatDate(selectedDate)} ✓`
+            : isToday
+              ? (listFilter === 'all' ? 'Save Attendance' : `Save Attendance (${presentCount} Present)`)
+              : `Update Attendance — ${formatDate(selectedDate)}`
+          }
         </Button>
       </div>
     </MobileLayout>

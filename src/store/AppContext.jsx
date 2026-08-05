@@ -148,14 +148,22 @@ export const AppProvider = ({ children }) => {
 
   const saveAttendance = useCallback(
     async (dateString, attendanceMap) => {
-      const entries = Object.entries(attendanceMap).map(([patient_id, present]) => ({
-        patient_id,
-        present: Boolean(present),
-      }));
+      // Filter out patients who were not yet enrolled on the selected date
+      const entries = Object.entries(attendanceMap)
+        .filter(([patient_id]) => {
+          const patient = patients.find((p) => p.id === patient_id);
+          if (!patient?.created_at) return true; // allow if unknown
+          const enrollmentDate = patient.created_at.slice(0, 10); // 'YYYY-MM-DD'
+          return dateString >= enrollmentDate;
+        })
+        .map(([patient_id, present]) => ({
+          patient_id,
+          present: Boolean(present),
+        }));
       await saveAttendanceBulk(dateString, entries);
       await loadAll();
     },
-    [loadAll]
+    [loadAll, patients]
   );
 
   const addPayment = useCallback(
@@ -181,6 +189,19 @@ export const AppProvider = ({ children }) => {
 
   const getPatientById = useCallback(
     (id) => patients.find((p) => p.id === id),
+    [patients]
+  );
+
+  /**
+   * Returns the enrollment date of a patient as a 'YYYY-MM-DD' string,
+   * or null if not found.
+   */
+  const getPatientEnrollmentDate = useCallback(
+    (patientId) => {
+      const patient = patients.find((p) => p.id === patientId);
+      if (!patient?.created_at) return null;
+      return patient.created_at.slice(0, 10);
+    },
     [patients]
   );
 
@@ -283,6 +304,7 @@ export const AppProvider = ({ children }) => {
     addPayment,
     markPatientPresent,
     getPatientById,
+    getPatientEnrollmentDate,
     getSessionsRemaining,
     getPatientAttendance,
     getPatientPayments,
