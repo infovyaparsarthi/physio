@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, CreditCard, History } from 'lucide-react';
+import { Plus, CreditCard, History, Tag } from 'lucide-react';
 import MobileLayout from '../layouts/MobileLayout';
 import Header from '../layouts/Header';
 import Card from '../components/Card';
@@ -17,17 +17,23 @@ const PAYMENT_TYPES = [
   { value: 'advance', label: 'Advance Sessions' },
   { value: 'monthly', label: 'Monthly' },
   { value: 'per_session', label: 'Per Session' },
+  { value: 'extra', label: 'Extra Payment' },
 ];
 
 const Payments = () => {
   const [searchParams] = useSearchParams();
   const defaultPatient = searchParams.get('patient') || '';
+  const defaultType = searchParams.get('type') || 'advance';
   const [showForm, setShowForm] = useState(Boolean(defaultPatient));
   const toast = useToast();
   const { patients, payments, addPayment, getSessionsRemaining } = useAppStore();
 
   const [form, setForm] = useState({
-    patient_id: defaultPatient, amount: '', payment_type: 'advance', sessions: '',
+    patient_id: defaultPatient,
+    amount: '',
+    payment_type: ['advance', 'monthly', 'per_session', 'extra'].includes(defaultType) ? defaultType : 'advance',
+    sessions: '',
+    notes: '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -48,9 +54,13 @@ const Payments = () => {
 
     setSaving(true);
     try {
-      await addPayment(form);
+      const payload = {
+        ...form,
+        sessions: form.payment_type === 'extra' ? 0 : form.sessions,
+      };
+      await addPayment(payload);
       setShowForm(false);
-      setForm({ patient_id: '', amount: '', payment_type: 'advance', sessions: '' });
+      setForm({ patient_id: '', amount: '', payment_type: 'advance', sessions: '', notes: '' });
       toast({ message: 'Payment recorded successfully!', type: 'success' });
     } catch (e) {
       toast({
@@ -111,6 +121,15 @@ const Payments = () => {
                 <Input label="Sessions Added" name="sessions" type="number" value={form.sessions} onChange={handleChange}
                   placeholder="e.g. 10" helper="Sessions being purchased" />
               )}
+              <Input
+                label={form.payment_type === 'extra' ? "Description / Note" : "Notes / Remark (Optional)"}
+                name="notes"
+                type="text"
+                value={form.notes}
+                onChange={handleChange}
+                placeholder={form.payment_type === 'extra' ? "e.g. Consultation fee, X-Ray, Custom brace" : "Optional payment note..."}
+                icon={Tag}
+              />
               <Button type="submit" size="full" loading={saving} icon={Plus}>Record Payment</Button>
             </form>
           </Card>
@@ -136,6 +155,7 @@ const Payments = () => {
             {sortedPayments.map((pay) => {
               const patient = getPatient(pay.patient_id);
               const remaining = patient ? getSessionsRemaining(patient) : 0;
+              const isExtra = pay.payment_type === 'extra';
               return (
                 <Card key={pay.id}>
                   <div className="flex items-center gap-3">
@@ -146,11 +166,18 @@ const Payments = () => {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-sm font-extrabold text-gray-900">{formatCurrency(pay.amount)}</p>
-                      <Badge color={PAYMENT_MODES[pay.payment_type]?.color || 'primary'} size="sm">{pay.sessions} sessions</Badge>
+                      <Badge color={PAYMENT_MODES[pay.payment_type]?.color || 'primary'} size="sm">
+                        {isExtra ? 'Extra Payment' : `${pay.sessions} sessions`}
+                      </Badge>
                     </div>
                   </div>
-                  {patient?.payment_mode === 'advance' && (
-                    <div className={`mt-2.5 px-3 py-1.5 rounded-xl text-xs font-semibold
+                  {pay.notes && (
+                    <p className="mt-2.5 px-3 py-1.5 rounded-xl text-xs bg-gray-50 text-gray-700 border border-gray-100">
+                      💬 <span className="font-medium">{pay.notes}</span>
+                    </p>
+                  )}
+                  {patient?.payment_mode === 'advance' && !isExtra && (
+                    <div className={`mt-2 px-3 py-1 rounded-xl text-xs font-semibold
                       ${remaining <= 2 ? 'bg-warning-50 text-warning-600' : 'bg-success-50 text-success-700'}`}>
                       {remaining} sessions remaining
                     </div>

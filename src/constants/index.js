@@ -2,6 +2,7 @@ export const PAYMENT_MODES = {
   per_session: { label: 'Per Session', color: 'blue' },
   monthly: { label: 'Monthly', color: 'purple' },
   advance: { label: 'Advance Sessions', color: 'teal' },
+  extra: { label: 'Extra Payment', color: 'indigo' },
 };
 
 export const PATIENT_STATUS = {

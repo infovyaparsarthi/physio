@@ -154,6 +154,7 @@ export async function fetchPayments(params = {}) {
     amount: Number(p.amount),
     payment_type: p.payment_type,
     sessions: Number(p.sessions),
+    notes: p.notes || null,
     created_at: p.created_at,
   }));
 }
@@ -166,6 +167,7 @@ export async function fetchPatientPayments(patientId) {
     amount: Number(p.amount),
     payment_type: p.payment_type,
     sessions: Number(p.sessions),
+    notes: p.notes || null,
     created_at: p.created_at,
     patient_name: p.patient_name,
   }));
@@ -236,5 +238,27 @@ export async function resetCompanyPassword(id) {
 
 export async function updateSubscriptionStatus(id, status) {
   const { data } = await api.patch(`/api/subscriptions/${id}`, { status });
+  return data;
+}
+
+// ── Remarks ──
+
+export async function fetchRemarks(patientId) {
+  const { data } = await api.get('/api/remarks', { params: { patient_id: patientId } });
+  return data;
+}
+
+export async function createRemark(body) {
+  const { data } = await api.post('/api/remarks', body);
+  return data;
+}
+
+export async function updateRemark(id, message) {
+  const { data } = await api.put(`/api/remarks/${id}`, { message });
+  return data;
+}
+
+export async function deleteRemark(id) {
+  const { data } = await api.delete(`/api/remarks/${id}`);
   return data;
 }

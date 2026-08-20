@@ -18,6 +18,10 @@ import {
   fetchCompanies,
   createCompany,
   updateCompany,
+  fetchRemarks,
+  createRemark,
+  updateRemark,
+  deleteRemark,
 } from '../services/api';
 
 const AppContext = createContext(null);
@@ -173,6 +177,7 @@ export const AppProvider = ({ children }) => {
         amount: Number(paymentData.amount),
         payment_type: paymentData.payment_type,
         sessions: paymentData.sessions,
+        notes: paymentData.notes || null,
       });
       await loadAll();
     },
@@ -253,6 +258,23 @@ export const AppProvider = ({ children }) => {
     [patients]
   );
 
+
+  const getPatientRemarks = useCallback(async (patientId) => {
+    return await fetchRemarks(patientId);
+  }, []);
+
+  const addRemark = useCallback(async (remarkData) => {
+    return await createRemark(remarkData);
+  }, []);
+
+  const updateRemarkById = useCallback(async (id, message) => {
+    return await updateRemark(id, message);
+  }, []);
+
+  const deleteRemarkById = useCallback(async (id) => {
+    return await deleteRemark(id);
+  }, []);
+
   const addEnquiry = useCallback(
     async (enquiryData) => {
       await createEnquiry(enquiryData);
@@ -316,6 +338,10 @@ export const AppProvider = ({ children }) => {
     deleteEnquiry,
     addNewCompany,
     updateCompanyById,
+    getPatientRemarks,
+    addRemark,
+    updateRemark: updateRemarkById,
+    deleteRemark: deleteRemarkById,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

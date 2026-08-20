@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Edit2, CalendarCheck, CreditCard, Phone, Activity, FileText, ChevronRight } from 'lucide-react';
+import { Edit2, CalendarCheck, CreditCard, Phone, Activity, FileText, ChevronRight, MessageSquare, Plus, Trash2, Check, X } from 'lucide-react';
 import MobileLayout from '../layouts/MobileLayout';
 import Header from '../layouts/Header';
 import Card from '../components/Card';
@@ -34,25 +34,51 @@ const PatientProfile = () => {
     getSessionsRemaining,
     getPatientAttendance,
     markPatientPresent,
+    getPatientRemarks,
+    addRemark,
+    updateRemark,
+    deleteRemark,
     attendance,
     loading,
+    user,
   } = useAppStore();
+
   const [markingPresent, setMarkingPresent] = useState(false);
   const [patientPayments, setPatientPayments] = useState([]);
   const [paymentsLoading, setPaymentsLoading] = useState(true);
 
+  // Remarks state
+  const [remarks, setRemarks] = useState([]);
+  const [remarksLoading, setRemarksLoading] = useState(true);
+  const [newRemark, setNewRemark] = useState('');
+  const [addingRemark, setAddingRemark] = useState(false);
+  const [editingRemarkId, setEditingRemarkId] = useState(null);
+  const [editMessage, setEditMessage] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
   const patient = useMemo(() => getPatientById(id), [id, getPatientById]);
   const patientAttendance = useMemo(() => getPatientAttendance(id), [id, getPatientAttendance]);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadPatientPayments = useCallback(() => {
     setPaymentsLoading(true);
     fetchPatientPayments(id)
-      .then((data) => { if (!cancelled) setPatientPayments(data); })
-      .catch(() => { if (!cancelled) setPatientPayments([]); })
-      .finally(() => { if (!cancelled) setPaymentsLoading(false); });
-    return () => { cancelled = true; };
+      .then((data) => setPatientPayments(data))
+      .catch(() => setPatientPayments([]))
+      .finally(() => setPaymentsLoading(false));
   }, [id]);
+
+  const loadRemarks = useCallback(() => {
+    setRemarksLoading(true);
+    getPatientRemarks(id)
+      .then((data) => setRemarks(data))
+      .catch(() => setRemarks([]))
+      .finally(() => setRemarksLoading(false));
+  }, [id, getPatientRemarks]);
+
+  useEffect(() => {
+    loadPatientPayments();
+    loadRemarks();
+  }, [loadPatientPayments, loadRemarks]);
 
   if (loading) {
     return (
@@ -102,6 +128,58 @@ const PatientProfile = () => {
       toast({ message: 'Could not mark attendance', type: 'error' });
     } finally {
       setMarkingPresent(false);
+    }
+  };
+
+  const handleAddRemark = async (e) => {
+    e.preventDefault();
+    if (!newRemark.trim()) return;
+    setAddingRemark(true);
+    try {
+      await addRemark({
+        patient_id: id,
+        message: newRemark.trim(),
+        author_name: user?.username || 'Staff',
+      });
+      setNewRemark('');
+      toast({ message: 'Remark added!', type: 'success' });
+      loadRemarks();
+    } catch {
+      toast({ message: 'Failed to add remark', type: 'error' });
+    } finally {
+      setAddingRemark(false);
+    }
+  };
+
+  const handleStartEdit = (rem) => {
+    setEditingRemarkId(rem.id);
+    setEditMessage(rem.message);
+  };
+
+  const handleSaveEdit = async (remarkId) => {
+    if (!editMessage.trim()) return;
+    setSavingEdit(true);
+    try {
+      await updateRemark(remarkId, editMessage.trim());
+      setEditingRemarkId(null);
+      setEditMessage('');
+      toast({ message: 'Remark updated!', type: 'success' });
+      loadRemarks();
+    } catch {
+      toast({ message: 'Failed to update remark', type: 'error' });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDeleteRemark = async (remarkId) => {
+    if (!window.confirm('Are you sure you want to delete this remark?')) return;
+    try {
+      await deleteRemark(remarkId);
+      toast({ message: 'Remark deleted!', type: 'success' });
+      loadRemarks();
+    } catch {
+      toast({ message: 'Failed to delete remark', type: 'error' });
     }
   };
 
@@ -188,31 +266,142 @@ const PatientProfile = () => {
           )}
         </Card>
 
+        {/* Remarks / Doctor Notes Card - Positioned after Attendance & above Payment History */}
+        <Card>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <MessageSquare size={14} className="text-primary-600" />
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Remarks & Doctor Notes</p>
+            </div>
+            <Badge color="indigo" size="sm">{remarks.length} notes</Badge>
+          </div>
+
+          <form onSubmit={handleAddRemark} className="flex gap-2 mb-4">
+            <input
+              type="text"
+              placeholder="Write a patient remark or note..."
+              value={newRemark}
+              onChange={(e) => setNewRemark(e.target.value)}
+              className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            />
+            <Button type="submit" size="sm" loading={addingRemark} icon={Plus}>Add</Button>
+          </form>
+
+          {remarksLoading ? (
+            <p className="text-sm text-gray-400 text-center py-4">Loading remarks...</p>
+          ) : remarks.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">No remarks added yet</p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {remarks.map((rem) => {
+                const isEditing = editingRemarkId === rem.id;
+                const isUpdated = rem.updated_at && rem.updated_at !== rem.created_at;
+
+                return (
+                  <div key={rem.id} className="p-3 bg-gray-50 rounded-xl border border-gray-100 flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-gray-800">{rem.author_name || 'Staff'}</span>
+                        <span className="text-[10px] text-gray-400">{formatDate(rem.created_at)}</span>
+                        {isUpdated && <span className="text-[10px] text-gray-400 italic">(edited)</span>}
+                      </div>
+                      {!isEditing && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleStartEdit(rem)}
+                            className="p-1 text-gray-400 hover:text-primary-600 rounded transition-colors"
+                            title="Edit Remark"
+                          >
+                            <Edit2 size={13} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteRemark(rem.id)}
+                            className="p-1 text-gray-400 hover:text-danger-600 rounded transition-colors"
+                            title="Delete Remark"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {isEditing ? (
+                      <div className="flex flex-col gap-2 mt-1">
+                        <textarea
+                          value={editMessage}
+                          onChange={(e) => setEditMessage(e.target.value)}
+                          className="w-full bg-white border border-gray-300 rounded-lg p-2 text-sm text-gray-800 outline-none focus:border-primary-500"
+                          rows={2}
+                        />
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => setEditingRemarkId(null)}
+                            className="px-2 py-1 text-xs font-medium text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                          >
+                            <X size={12} /> Cancel
+                          </button>
+                          <button
+                            onClick={() => handleSaveEdit(rem.id)}
+                            disabled={savingEdit}
+                            className="px-3 py-1 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 flex items-center gap-1"
+                          >
+                            <Check size={12} /> Save
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-700 leading-snug whitespace-pre-wrap">{rem.message}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+
         <Card>
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Payment History</p>
-            <button onClick={() => navigate(`/payments?patient=${id}`)} className="flex items-center gap-1 text-xs text-primary-600 font-semibold">
-              Add <ChevronRight size={12} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => navigate(`/payments?patient=${id}&type=extra`)} className="text-xs text-indigo-600 font-semibold hover:underline">
+                + Extra Payment
+              </button>
+              <span className="text-gray-300">|</span>
+              <button onClick={() => navigate(`/payments?patient=${id}`)} className="flex items-center gap-1 text-xs text-primary-600 font-semibold">
+                Add <ChevronRight size={12} />
+              </button>
+            </div>
           </div>
           {paymentsLoading ? (
             <p className="text-sm text-gray-400 text-center py-4">Loading…</p>
           ) : patientPayments.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-4">No payments recorded</p>
           ) : (
-            <div className="flex flex-col gap-1.5">
-              {patientPayments.map((pay) => (
-                <div key={pay.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                  <div>
-                    <p className="text-sm text-gray-800 font-semibold">{formatCurrency(pay.amount)}</p>
-                    <p className="text-xs text-gray-400">{formatDate(pay.created_at)}</p>
+            <div className="flex flex-col gap-2">
+              {patientPayments.map((pay) => {
+                const isExtra = pay.payment_type === 'extra';
+                return (
+                  <div key={pay.id} className="p-2.5 rounded-xl border border-gray-100 bg-white flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-900 font-bold">{formatCurrency(pay.amount)}</p>
+                        <p className="text-xs text-gray-400">{formatDate(pay.created_at)}</p>
+                      </div>
+                      <div className="text-right">
+                        <Badge color={PAYMENT_MODES[pay.payment_type]?.color || 'primary'} size="sm">
+                          {isExtra ? 'Extra Payment' : `${pay.sessions} sessions`}
+                        </Badge>
+                        <p className="text-xs text-gray-400 mt-0.5 capitalize">{PAYMENT_MODES[pay.payment_type]?.label || pay.payment_type}</p>
+                      </div>
+                    </div>
+                    {pay.notes && (
+                      <p className="text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100 italic mt-0.5">
+                        💬 <span className="font-medium">{pay.notes}</span>
+                      </p>
+                    )}
                   </div>
-                  <div className="text-right">
-                    <Badge color="primary" size="sm">{pay.sessions} sessions</Badge>
-                    <p className="text-xs text-gray-400 mt-0.5 capitalize">{pay.payment_type}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </Card>
